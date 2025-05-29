@@ -23,6 +23,9 @@ os.makedirs(STATIC_FOLDER, exist_ok=True)
 # Load model
 model = XrayModel('chexnet_custom_finetuned (1).pth')
 
+# In-memory user store for demo (replace with DB in production)
+users = {}
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -68,6 +71,27 @@ def upload_image():
 @app.route('/static/<filename>')
 def serve_static(filename):
     return send_file(os.path.join(app.config['STATIC_FOLDER'], filename))
+
+@app.route('/api/signup', methods=['POST'])
+def signup():
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+    name = data.get('name')
+    if email in users:
+        return jsonify({'error': 'Email already registered'}), 400
+    users[email] = {'password': password, 'name': name}
+    return jsonify({'message': 'Registration successful'})
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+    user = users.get(email)
+    if not user or user['password'] != password:
+        return jsonify({'error': 'Invalid email or password'}), 401
+    return jsonify({'message': 'Login successful', 'name': user['name']})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
